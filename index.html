@@ -223,12 +223,18 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
-            <h2 class="text-xl font-semibold mb-2 text-gray-800">X.com API Settings</h2>
+            <h2 class="text-xl font-semibold mb-2 text-gray-800">API Settings</h2>
+            
+            <!-- Gemini API Key Input -->
+            <label for="gemini-api-key-input" class="block text-sm font-medium mt-4 mb-1 text-gray-600">Gemini API Key</label>
+            <input type="text" id="gemini-api-key-input" placeholder="Enter your Gemini API Key" class="input-field w-full mb-4">
+            
+            <h3 class="text-lg font-semibold mb-2 text-gray-800">X.com API Keys</h3>
             <label for="api-key-input" class="block text-sm font-medium mb-1 text-gray-600">API Key</label>
-            <input type="text" id="api-key-input" placeholder="Enter your API Key" class="input-field w-full mb-4">
+            <input type="text" id="api-key-input" placeholder="Enter your X.com API Key" class="input-field w-full mb-4">
             
             <label for="api-secret-input" class="block text-sm font-medium mb-1 text-gray-600">API Secret</label>
-            <input type="text" id="api-secret-input" placeholder="Enter your API Secret" class="input-field w-full">
+            <input type="text" id="api-secret-input" placeholder="Enter your X.com API Secret" class="input-field w-full">
             
             <button id="save-settings-button" class="w-full mt-4 btn-primary">
                 Save Settings
@@ -249,6 +255,7 @@
         const settingsToggleButton = document.getElementById('settings-toggle-button');
         const settingsModal = document.getElementById('settings-modal');
         const closeModalButton = document.getElementById('close-modal-button');
+        const geminiApiKeyInput = document.getElementById('gemini-api-key-input');
         const apiKeyInput = document.getElementById('api-key-input');
         const apiSecretInput = document.getElementById('api-secret-input');
         const saveSettingsButton = document.getElementById('save-settings-button');
@@ -267,6 +274,7 @@
         const suggestEmojisButton = document.getElementById('suggest-emojis-button');
 
         // Global variables for API keys, initialized from local storage
+        let GEMINI_API_KEY = localStorage.getItem('GEMINI_API_KEY') || "";
         let X_API_KEY = localStorage.getItem('X_API_KEY') || "";
         let X_API_SECRET = localStorage.getItem('X_API_SECRET') || "";
         
@@ -347,6 +355,11 @@
          * Calls the Gemini TTS API to generate audio.
          */
         async function callGeminiTTSAPI(text) {
+            if (!GEMINI_API_KEY) {
+                showMessage('Please enter your Gemini API key in settings.', 'error');
+                return;
+            }
+
             ttsButton.disabled = true;
             ttsButton.innerHTML = "<span>Generating Audio...</span>";
             
@@ -365,7 +378,7 @@
                     }
                 };
 
-                const apiKey = ""; // Canvas will provide this automatically
+                const apiKey = GEMINI_API_KEY; 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
                 
                 let response;
@@ -423,6 +436,11 @@
          * This function handles loading state and displays messages.
          */
         async function callGeminiAPI(prompt, successMessage, outputElement) {
+            if (!GEMINI_API_KEY) {
+                showMessage('Please enter your Gemini API key in settings.', 'error');
+                return;
+            }
+
             // Disable all buttons during API call
             const allButtons = [generateButton, refineButton, postButton, translateButton, toneButton, ttsButton, suggestEmojisButton];
             allButtons.forEach(btn => {
@@ -446,7 +464,7 @@
                 let chatHistory = [];
                 chatHistory.push({ role: "user", parts: [{ text: prompt }] });
                 const payload = { contents: chatHistory };
-                const apiKey = ""; // Canvas will provide this automatically
+                const apiKey = GEMINI_API_KEY; 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
                 let response;
@@ -625,7 +643,7 @@
                 try {
                     let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
                     const payload = { contents: chatHistory };
-                    const apiKey = "";
+                    const apiKey = GEMINI_API_KEY;
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
                     
                     let response;
@@ -674,7 +692,7 @@
          */
         async function postToX() {
             if (!X_API_KEY || !X_API_SECRET) {
-                showMessage('Please enter and save your API keys in the settings section.', 'error');
+                showMessage('Please enter and save your X.com API keys in the settings section.', 'error');
                 return;
             }
 
@@ -726,25 +744,36 @@
          * Saves the API keys to localStorage.
          */
         function saveSettings() {
+            const geminiKey = geminiApiKeyInput.value.trim();
             const apiKey = apiKeyInput.value.trim();
             const apiSecret = apiSecretInput.value.trim();
             
+            if (geminiKey) {
+                localStorage.setItem('GEMINI_API_KEY', geminiKey);
+                GEMINI_API_KEY = geminiKey;
+                showMessage('Gemini API key saved successfully!', 'success');
+            } else {
+                showMessage('Please enter your Gemini API key.', 'error');
+                return;
+            }
+
             if (apiKey && apiSecret) {
                 localStorage.setItem('X_API_KEY', apiKey);
                 localStorage.setItem('X_API_SECRET', apiSecret);
                 X_API_KEY = apiKey;
                 X_API_SECRET = apiSecret;
-                showMessage('API keys saved successfully!', 'success');
-                settingsModal.classList.add('hidden'); // Close modal on success
+                showMessage('X.com API keys saved successfully!', 'success');
             } else {
-                showMessage('Please enter both API Key and API Secret.', 'error');
+                showMessage('Please enter both X.com API Key and API Secret.', 'error');
             }
+            settingsModal.classList.add('hidden');
         }
 
         /**
          * Loads the API keys from localStorage on page load.
          */
         function loadSettings() {
+            geminiApiKeyInput.value = GEMINI_API_KEY;
             apiKeyInput.value = X_API_KEY;
             apiSecretInput.value = X_API_SECRET;
         }
