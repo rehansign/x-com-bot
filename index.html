@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X.com AI Agent</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F0F4F8;
+            color: #1A202C;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 2rem;
+        }
+
+        .card {
+            background-color: #F8FAFC;
+            border-radius: 2rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid #E2E8F0;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #7F5AF0 0%, #B892F7 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            font-weight: bold;
+            border-radius: 1.5rem;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn-secondary {
+            background-color: #E2E8F0;
+            color: #4A5568;
+            padding: 0.75rem 1.5rem;
+            font-weight: bold;
+            border-radius: 1.5rem;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        .btn-secondary:hover {
+            background-color: #CBD5E0;
+        }
+
+        .btn-disabled {
+            background-color: #E2E8F0;
+            color: #A0AEC0;
+            cursor: not-allowed;
+            box-shadow: none;
+            opacity: 0.7;
+            background-image: none;
+        }
+        
+        .input-field {
+            background-color: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            color: #4A5568;
+            padding: 0.75rem 1rem;
+            border-radius: 1.5rem;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease-in-out;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #B892F7;
+            box-shadow: 0 0 0 3px rgba(184, 146, 247, 0.3);
+        }
+
+        /* Styling for the floating modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-card {
+            background-color: #F8FAFC;
+            border-radius: 2rem;
+            padding: 2rem;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center min-h-screen p-4">
+
+    <!-- Main Container -->
+    <div class="w-full max-w-2xl flex flex-col space-y-6">
+        <!-- Navbar -->
+        <nav class="card p-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <!-- AI Icon -->
+                <div class="bg-indigo-600 p-2 rounded-full shadow-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 17c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7zm-2-9h4v2h-4v-2z"/>
+                    </svg>
+                </div>
+                <span class="text-2xl font-bold text-gray-800">
+                    X.com Bot
+                </span>
+            </div>
+            <!-- Settings toggle button -->
+            <button id="settings-toggle-button" class="btn-secondary flex items-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.39-1.09-.73-1.71-.98l-.37-2.65c-.06-.24-.28-.42-.5-.42h-4c-.22 0-.44.18-.5.42l-.37 2.65c-.62.25-1.19.59-1.71.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.12.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.39 1.09.73 1.71.98l.37 2.65c.06.24.28.42.5.42h4c.22 0 .44-.18.5-.42l.37-2.65c.62-.25 1.19-.59 1.71-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/>
+                </svg>
+            </button>
+        </nav>
+
+        <!-- AI Content Generation Section -->
+        <div class="card">
+            <h2 class="text-xl font-semibold mb-2 text-gray-800">Generate Post</h2>
+            <label for="user-prompt-input" class="block text-sm font-medium mb-1 text-gray-600">Your Prompt</label>
+            <textarea id="user-prompt-input" class="input-field w-full h-20 mb-4" placeholder="Enter a topic for your post..."></textarea>
+            
+            <textarea id="ai-content-output" class="input-field w-full h-32" placeholder="Click 'Generate Post' to get a draft..." maxlength="280"></textarea>
+            <div id="char-counter" class="text-right text-xs text-gray-500 mt-1">
+                280 characters remaining
+            </div>
+            
+            <div class="mt-4 flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2">
+                <button id="generate-button" class="flex-1 btn-primary">
+                    Generate Post ✨
+                </button>
+                <button id="refine-button" class="flex-1 btn-secondary btn-disabled" disabled>
+                    Make More Engaging ✨
+                </button>
+            </div>
+        </div>
+
+        <!-- New features section -->
+        <div class="card">
+            <h2 class="text-xl font-semibold mb-2 text-gray-800">Enhance Post</h2>
+            <div class="space-y-4">
+                <!-- Tone Analyzer -->
+                <div>
+                    <div class="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-2">
+                        <button id="tone-button" class="flex-1 btn-primary w-full md:w-auto">
+                            Analyze Tone ✨
+                        </button>
+                        <div id="tone-output" class="flex-1 p-3 text-center font-semibold rounded-2xl bg-gray-100 border border-gray-200 text-gray-600">
+                            Tone
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Text to Speech -->
+                <div>
+                    <button id="tts-button" class="w-full btn-primary flex items-center justify-center space-x-2">
+                        <span>Read Aloud ✨</span>
+                    </button>
+                    <div id="audio-container" class="mt-2 hidden">
+                        <audio id="tts-audio" controls class="w-full"></audio>
+                    </div>
+                </div>
+
+                <!-- Suggest Emojis -->
+                <div>
+                    <button id="suggest-emojis-button" class="w-full btn-primary flex items-center justify-center space-x-2">
+                        <span>Suggest Emojis ✨</span>
+                    </button>
+                </div>
+
+                <!-- Post Translator -->
+                <div>
+                    <label for="language-select" class="block text-sm font-medium mb-1 text-gray-600">Translate to</label>
+                    <div class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2">
+                        <select id="language-select" class="input-field flex-1">
+                            <option value="fr">French</option>
+                            <option value="es">Spanish</option>
+                            <option value="de">German</option>
+                            <option value="ja">Japanese</option>
+                            <option value="hi">Hindi</option>
+                            <option value="ar">Arabic</option>
+                            <option value="ur">Urdu</option>
+                        </select>
+                        <button id="translate-button" class="btn-primary flex items-center justify-center">
+                            Translate ✨
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Post to X.com Section -->
+        <div class="card">
+            <h2 class="text-xl font-semibold mb-2 text-gray-800">Post to X.com</h2>
+            <button id="post-button" class="w-full btn-primary btn-disabled" disabled>
+                Post to X.com
+            </button>
+        </div>
+    </div>
+
+    <!-- API Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <button id="close-modal-button" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <h2 class="text-xl font-semibold mb-2 text-gray-800">X.com API Settings</h2>
+            <label for="api-key-input" class="block text-sm font-medium mb-1 text-gray-600">API Key</label>
+            <input type="text" id="api-key-input" placeholder="Enter your API Key" class="input-field w-full mb-4">
+            
+            <label for="api-secret-input" class="block text-sm font-medium mb-1 text-gray-600">API Secret</label>
+            <input type="text" id="api-secret-input" placeholder="Enter your API Secret" class="input-field w-full">
+            
+            <button id="save-settings-button" class="w-full mt-4 btn-primary">
+                Save Settings
+            </button>
+        </div>
+    </div>
+
+    <!-- Message Box -->
+    <div id="message-box" class="fixed bottom-4 left-1/2 -translate-x-1/2 p-4 rounded-lg text-sm hidden"></div>
+
+    <script>
+        // Get references to the UI elements
+        const generateButton = document.getElementById('generate-button');
+        const refineButton = document.getElementById('refine-button');
+        const postButton = document.getElementById('post-button');
+        const aiContentOutput = document.getElementById('ai-content-output');
+        const userPromptInput = document.getElementById('user-prompt-input');
+        const settingsToggleButton = document.getElementById('settings-toggle-button');
+        const settingsModal = document.getElementById('settings-modal');
+        const closeModalButton = document.getElementById('close-modal-button');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const apiSecretInput = document.getElementById('api-secret-input');
+        const saveSettingsButton = document.getElementById('save-settings-button');
+        const messageBox = document.getElementById('message-box');
+        const charCounter = document.getElementById('char-counter');
+        
+        // New elements for the new features
+        const translateButton = document.getElementById('translate-button');
+        const languageSelect = document.getElementById('language-select');
+        const toneButton = document.getElementById('tone-button');
+        const toneOutput = document.getElementById('tone-output');
+        const ttsButton = document.getElementById('tts-button');
+        const ttsAudio = document.getElementById('tts-audio');
+        const audioContainer = document.getElementById('audio-container');
+        // Gemini-powered buttons
+        const suggestEmojisButton = document.getElementById('suggest-emojis-button');
+
+        // Global variables for API keys, initialized from local storage
+        let X_API_KEY = localStorage.getItem('X_API_KEY') || "";
+        let X_API_SECRET = localStorage.getItem('X_API_SECRET') || "";
+        
+        // Character limit for X.com posts
+        const MAX_CHARS = 280;
+
+        /**
+         * Updates the character counter display.
+         */
+        function updateCharCounter() {
+            const remaining = MAX_CHARS - aiContentOutput.value.length;
+            charCounter.textContent = `${remaining} characters remaining`;
+        }
+
+        /**
+         * Converts a base64 string to an ArrayBuffer.
+         * @param {string} base64 The base64 encoded string.
+         * @returns {ArrayBuffer} The decoded data as an ArrayBuffer.
+         */
+        function base64ToArrayBuffer(base64) {
+            const binaryString = window.atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        /**
+         * Converts raw PCM audio data to a WAV file Blob.
+         * @param {Int16Array} pcmData The PCM audio data.
+         * @param {number} sampleRate The sample rate of the audio.
+         * @returns {Blob} The WAV file as a Blob.
+         */
+        function pcmToWav(pcmData, sampleRate) {
+            const buffer = new ArrayBuffer(44 + pcmData.length * 2);
+            const view = new DataView(buffer);
+            
+            // RIFF chunk
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + pcmData.length * 2, true);
+            writeString(view, 8, 'WAVE');
+
+            // fmt chunk
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true); // PCM format
+            view.setUint16(22, 1, true); // Mono
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true); // Byte rate
+            view.setUint16(32, 2, true); // Block align
+            view.setUint16(34, 16, true); // Bits per sample
+
+            // data chunk
+            writeString(view, 36, 'data');
+            view.setUint32(40, pcmData.length * 2, true);
+            
+            let offset = 44;
+            for (let i = 0; i < pcmData.length; i++) {
+                view.setInt16(offset, pcmData[i], true);
+                offset += 2;
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        /**
+         * Helper function to write a string to a DataView.
+         */
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+        
+        /**
+         * Calls the Gemini TTS API to generate audio.
+         */
+        async function callGeminiTTSAPI(text) {
+            ttsButton.disabled = true;
+            ttsButton.innerHTML = "<span>Generating Audio...</span>";
+            
+            try {
+                const payload = {
+                    contents: [{
+                        parts: [{ text: `Say with a neutral tone: ${text}` }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: "Kore" }
+                            }
+                        }
+                    }
+                };
+
+                const apiKey = ""; // Canvas will provide this automatically
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+                
+                let response;
+                let retryCount = 0;
+                const maxRetries = 3;
+                while (retryCount < maxRetries) {
+                    try {
+                        response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (response.ok) break;
+                    } catch (error) {
+                        console.warn(`TTS Fetch attempt ${retryCount + 1} failed. Retrying...`);
+                    }
+                    retryCount++;
+                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000)); // Exponential backoff
+                }
+
+                if (!response || !response.ok) {
+                    throw new Error("TTS API call failed after multiple retries.");
+                }
+
+                const result = await response.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                    const sampleRate = parseInt(mimeType.match(/rate=(\d+)/)[1], 10);
+                    const pcmData = base64ToArrayBuffer(audioData);
+                    const pcm16 = new Int16Array(pcmData);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    
+                    ttsAudio.src = audioUrl;
+                    audioContainer.classList.remove('hidden');
+                    showMessage('Audio generated successfully!', 'success');
+                } else {
+                    throw new Error("Invalid audio data from API.");
+                }
+            } catch (error) {
+                console.error("Error calling Gemini TTS API:", error);
+                showMessage('An error occurred while generating audio. Check the console.', 'error');
+            } finally {
+                ttsButton.disabled = false;
+                ttsButton.innerHTML = "<span>Read Aloud ✨</span>";
+            }
+        }
+        
+        /**
+         * Simulates a fetch call to a generative model.
+         * The `prompt` is the text sent to the model.
+         * This function handles loading state and displays messages.
+         */
+        async function callGeminiAPI(prompt, successMessage, outputElement) {
+            // Disable all buttons during API call
+            const allButtons = [generateButton, refineButton, postButton, translateButton, toneButton, ttsButton, suggestEmojisButton];
+            allButtons.forEach(btn => {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerText = "Working...";
+                    btn.classList.add('btn-disabled');
+                    btn.classList.remove('btn-primary', 'btn-secondary');
+                }
+            });
+            // Specific button text
+            generateButton.innerText = "Generating...";
+            if(refineButton) refineButton.innerText = "Refining...";
+            if(translateButton) translateButton.innerText = "Translating...";
+            if(toneButton) toneButton.innerText = "Analyzing...";
+            if(ttsButton) ttsButton.innerText = "Generating Audio...";
+            if(suggestEmojisButton) suggestEmojisButton.innerText = "Suggesting...";
+
+            try {
+                // The actual fetch call to the Gemini API
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // Canvas will provide this automatically
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                let response;
+                let retryCount = 0;
+                const maxRetries = 3;
+                while (retryCount < maxRetries) {
+                    try {
+                        response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (response.ok) break;
+                    } catch (error) {
+                        console.warn(`Fetch attempt ${retryCount + 1} failed. Retrying...`);
+                    }
+                    retryCount++;
+                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000)); // Exponential backoff
+                }
+
+                if (!response || !response.ok) {
+                    throw new Error("API call failed after multiple retries.");
+                }
+
+                const result = await response.json();
+                const text = result.candidates[0].content.parts[0].text;
+                if (outputElement) {
+                    outputElement.innerText = text;
+                } else {
+                    aiContentOutput.value = text;
+                }
+                
+                showMessage(successMessage, 'success');
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                showMessage('An error occurred. Check the console for details.', 'error');
+                if (outputElement) {
+                    outputElement.innerText = "Failed to process";
+                } else {
+                    aiContentOutput.value = "Failed to process the request. Please try again.";
+                }
+            } finally {
+                // Re-enable buttons and update text
+                if (generateButton) {
+                    generateButton.disabled = false;
+                    generateButton.innerText = "Generate Post ✨";
+                    generateButton.classList.remove('btn-disabled');
+                    generateButton.classList.add('btn-primary');
+                }
+
+                if (translateButton) {
+                    translateButton.disabled = false;
+                    translateButton.innerText = "Translate ✨";
+                    translateButton.classList.remove('btn-disabled');
+                    translateButton.classList.add('btn-primary');
+                }
+
+                if (toneButton) {
+                    toneButton.disabled = false;
+                    toneButton.innerText = "Analyze Tone ✨";
+                    toneButton.classList.remove('btn-disabled');
+                    toneButton.classList.add('btn-primary');
+                }
+
+                if (ttsButton) {
+                    ttsButton.disabled = false;
+                    ttsButton.innerText = "Read Aloud ✨";
+                    ttsButton.classList.remove('btn-disabled');
+                    ttsButton.classList.add('btn-primary');
+                }
+                
+                if (suggestEmojisButton) {
+                    suggestEmojisButton.disabled = false;
+                    suggestEmojisButton.innerText = "Suggest Emojis ✨";
+                    suggestEmojisButton.classList.remove('btn-disabled');
+                    suggestEmojisButton.classList.add('btn-primary');
+                }
+
+                
+                // Enable refine and post buttons if there's content
+                if (aiContentOutput.value.trim() !== '' && !aiContentOutput.value.includes("Failed")) {
+                    if (refineButton) {
+                        refineButton.disabled = false;
+                        refineButton.classList.remove('btn-disabled');
+                        refineButton.classList.add('btn-secondary');
+                        refineButton.innerText = "Make More Engaging ✨";
+                    }
+
+                    if (postButton) {
+                        postButton.disabled = false;
+                        postButton.classList.remove('btn-disabled');
+                        postButton.classList.add('btn-primary');
+                        postButton.innerText = "Post to X.com";
+                    }
+                } else {
+                    if (refineButton) {
+                        refineButton.disabled = true;
+                        refineButton.classList.add('btn-disabled');
+                        refineButton.classList.remove('btn-secondary');
+                        refineButton.innerText = "Make More Engaging ✨";
+                    }
+
+                    if (postButton) {
+                        postButton.disabled = true;
+                        postButton.classList.add('btn-disabled');
+                        postButton.classList.remove('btn-primary');
+                    }
+                }
+                updateCharCounter();
+            }
+        }
+        
+        /**
+         * Generates a new social media post using the Gemini API.
+         */
+        async function generatePost() {
+            const userPrompt = userPromptInput.value.trim();
+            // Tell the model to respect the character limit
+            const prompt = `Write a compelling social media post, no more than ${MAX_CHARS} characters long, about ${userPrompt || 'the importance of sustainable technology and its impact on the future.'}`;
+            await callGeminiAPI(prompt, 'Content generated successfully!');
+        }
+
+        /**
+         * Refines the existing post using the Gemini API.
+         */
+        async function refinePost() {
+            const currentContent = aiContentOutput.value;
+            if (currentContent.trim() === '') {
+                showMessage('No content to refine. Please generate a post first.', 'error');
+                return;
+            }
+            const prompt = `Rewrite the following social media post to make it more concise and engaging, and add a call to action. Keep the original sentiment and hashtags, if any. The final post must not exceed ${MAX_CHARS} characters.\n\n"${currentContent}"`;
+            await callGeminiAPI(prompt, 'Post refined for better engagement!');
+        }
+
+        /**
+         * Translates the current post to a selected language.
+         */
+        async function translatePost() {
+            const currentContent = aiContentOutput.value;
+            const selectedLanguage = languageSelect.options[languageSelect.selectedIndex].text;
+            if (currentContent.trim() === '') {
+                showMessage('No content to translate. Please generate a post first.', 'error');
+                return;
+            }
+            const prompt = `Translate the following social media post into ${selectedLanguage}. The translated post should not exceed ${MAX_CHARS} characters.\n\n"${currentContent}"`;
+            await callGeminiAPI(prompt, `Post translated to ${selectedLanguage}!`);
+        }
+        
+        /**
+         * Analyzes the tone of the current post.
+         */
+        async function analyzeTone() {
+            const currentContent = aiContentOutput.value;
+            if (currentContent.trim() === '') {
+                showMessage('No content to analyze. Please generate a post first.', 'error');
+                return;
+            }
+            const prompt = `Analyze the tone of the following social media post and return a single word, such as 'Professional', 'Casual', 'Informative', 'Witty', or 'Passionate'. Do not include any other text.\n\n"${currentContent}"`;
+            await callGeminiAPI(prompt, 'Tone analyzed!', toneOutput);
+        }
+        
+        /**
+         * Suggests relevant emojis for the post and appends them.
+         */
+        async function suggestEmojis() {
+            const currentContent = aiContentOutput.value;
+            if (currentContent.trim() === '') {
+                showMessage('No content to add emojis to. Please generate a post first.', 'error');
+                return;
+            }
+            const prompt = `Suggest a few relevant emojis to add to the end of the following social media post. Do not include any text besides the emojis.\n\n"${currentContent}"`;
+            
+            // Get emojis from the API
+            const emojiResponse = await new Promise(async (resolve, reject) => {
+                try {
+                    let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                    const payload = { contents: chatHistory };
+                    const apiKey = "";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                    
+                    let response;
+                    let retryCount = 0;
+                    const maxRetries = 3;
+                    while (retryCount < maxRetries) {
+                        try {
+                            response = await fetch(apiUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            if (response.ok) break;
+                        } catch (error) {
+                            console.warn(`Fetch attempt ${retryCount + 1} failed. Retrying...`);
+                        }
+                        retryCount++;
+                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+                    }
+
+                    if (!response || !response.ok) {
+                        throw new Error("API call failed after multiple retries.");
+                    }
+
+                    const result = await response.json();
+                    resolve(result.candidates[0].content.parts[0].text);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+
+            // Append the emojis to the existing content if there is space
+            const currentText = aiContentOutput.value.trim();
+            const newText = currentText + " " + emojiResponse.trim();
+            if (newText.length <= MAX_CHARS) {
+                aiContentOutput.value = newText;
+                showMessage('Emojis suggested and added!', 'success');
+            } else {
+                showMessage('Not enough space to add emojis.', 'error');
+            }
+            updateCharCounter();
+        }
+
+        /**
+         * This function simulates posting the content to X.com.
+         */
+        async function postToX() {
+            if (!X_API_KEY || !X_API_SECRET) {
+                showMessage('Please enter and save your API keys in the settings section.', 'error');
+                return;
+            }
+
+            postButton.disabled = true;
+            postButton.innerText = "Posting...";
+
+            const content = aiContentOutput.value;
+
+            // In a real application, you would make a POST request to the X.com API.
+            // For this conceptual guide, we simply simulate success
+            await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API delay
+
+            if (content.trim() !== '') {
+                showMessage('Simulated post successful! Your bot would have posted this content to X.', 'success');
+                aiContentOutput.value = ''; // Clear the text area
+                postButton.disabled = true;
+                postButton.innerText = "Post to X.com";
+                postButton.classList.remove('btn-primary');
+                postButton.classList.add('btn-disabled');
+                
+                refineButton.disabled = true;
+                refineButton.innerText = "Make More Engaging ✨";
+                refineButton.classList.remove('btn-secondary');
+                refineButton.classList.add('btn-disabled');
+            } else {
+                showMessage('Cannot post empty content.', 'error');
+            }
+        }
+        
+        /**
+         * Displays a message in the message box
+         */
+        function showMessage(text, type) {
+            messageBox.textContent = text;
+            messageBox.classList.remove('hidden', 'bg-red-700', 'bg-green-700', 'text-red-100', 'text-green-100');
+            if (type === 'success') {
+                messageBox.classList.add('bg-green-700', 'text-green-100');
+            } else if (type === 'error') {
+                messageBox.classList.add('bg-red-700', 'text-red-100');
+            }
+            // Show the message box and hide it after 3 seconds
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 3000);
+        }
+        
+        /**
+         * Saves the API keys to localStorage.
+         */
+        function saveSettings() {
+            const apiKey = apiKeyInput.value.trim();
+            const apiSecret = apiSecretInput.value.trim();
+            
+            if (apiKey && apiSecret) {
+                localStorage.setItem('X_API_KEY', apiKey);
+                localStorage.setItem('X_API_SECRET', apiSecret);
+                X_API_KEY = apiKey;
+                X_API_SECRET = apiSecret;
+                showMessage('API keys saved successfully!', 'success');
+                settingsModal.classList.add('hidden'); // Close modal on success
+            } else {
+                showMessage('Please enter both API Key and API Secret.', 'error');
+            }
+        }
+
+        /**
+         * Loads the API keys from localStorage on page load.
+         */
+        function loadSettings() {
+            apiKeyInput.value = X_API_KEY;
+            apiSecretInput.value = X_API_SECRET;
+        }
+
+        // Event listeners for the buttons
+        if (generateButton) generateButton.addEventListener('click', generatePost);
+        if (refineButton) refineButton.addEventListener('click', refinePost);
+        if (translateButton) translateButton.addEventListener('click', translatePost);
+        if (toneButton) toneButton.addEventListener('click', analyzeTone);
+        if (ttsButton) ttsButton.addEventListener('click', () => {
+            const currentContent = aiContentOutput.value;
+            if (currentContent.trim() === '') {
+                showMessage('No content to read aloud. Please generate a post first.', 'error');
+                return;
+            }
+            callGeminiTTSAPI(currentContent);
+        });
+        if (postButton) postButton.addEventListener('click', postToX);
+        if (suggestEmojisButton) suggestEmojisButton.addEventListener('click', suggestEmojis);
+        if (saveSettingsButton) saveSettingsButton.addEventListener('click', saveSettings);
+        
+        // Settings modal logic
+        if (settingsToggleButton) {
+            settingsToggleButton.addEventListener('click', () => {
+                if (settingsModal) {
+                    settingsModal.classList.remove('hidden');
+                    loadSettings();
+                }
+            });
+        }
+        
+        if (closeModalButton) {
+            closeModalButton.addEventListener('click', () => {
+                if (settingsModal) {
+                    settingsModal.classList.add('hidden');
+                }
+            });
+        }
+        
+        // Character counter logic
+        if (aiContentOutput) aiContentOutput.addEventListener('input', updateCharCounter);
+
+        // Load settings on initial page load
+        window.addEventListener('load', () => {
+            updateCharCounter();
+        });
+
+    </script>
+</body>
+</html>
