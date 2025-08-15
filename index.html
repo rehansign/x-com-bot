@@ -168,6 +168,16 @@
                     </div>
                 </div>
                 
+                <!-- Text to Speech -->
+                <div>
+                    <button id="tts-button" class="w-full btn-primary flex items-center justify-center space-x-2">
+                        <span>Read Aloud ✨</span>
+                    </button>
+                    <div id="audio-container" class="mt-2 hidden">
+                        <audio id="tts-audio" controls class="w-full"></audio>
+                    </div>
+                </div>
+
                 <!-- Suggest Emojis -->
                 <div>
                     <button id="suggest-emojis-button" class="w-full btn-primary flex items-center justify-center space-x-2">
@@ -215,9 +225,9 @@
             </button>
             <h2 class="text-xl font-semibold mb-2 text-gray-800">API Settings</h2>
             
-            <!-- OpenAI API Key Input -->
-            <label for="openai-api-key-input" class="block text-sm font-medium mt-4 mb-1 text-gray-600">OpenAI API Key</label>
-            <input type="text" id="openai-api-key-input" placeholder="Enter your OpenAI API Key" class="input-field w-full mb-4">
+            <!-- Gemini API Key Input -->
+            <label for="gemini-api-key-input" class="block text-sm font-medium mt-4 mb-1 text-gray-600">Gemini API Key</label>
+            <input type="text" id="gemini-api-key-input" placeholder="Enter your Gemini API Key" class="input-field w-full mb-4">
             
             <h3 class="text-lg font-semibold mb-2 text-gray-800">X.com API Keys</h3>
             <label for="api-key-input" class="block text-sm font-medium mb-1 text-gray-600">API Key</label>
@@ -245,7 +255,7 @@
         const settingsToggleButton = document.getElementById('settings-toggle-button');
         const settingsModal = document.getElementById('settings-modal');
         const closeModalButton = document.getElementById('close-modal-button');
-        const openaiApiKeyInput = document.getElementById('openai-api-key-input');
+        const geminiApiKeyInput = document.getElementById('gemini-api-key-input');
         const apiKeyInput = document.getElementById('api-key-input');
         const apiSecretInput = document.getElementById('api-secret-input');
         const saveSettingsButton = document.getElementById('save-settings-button');
@@ -257,10 +267,14 @@
         const languageSelect = document.getElementById('language-select');
         const toneButton = document.getElementById('tone-button');
         const toneOutput = document.getElementById('tone-output');
+        const ttsButton = document.getElementById('tts-button');
+        const ttsAudio = document.getElementById('tts-audio');
+        const audioContainer = document.getElementById('audio-container');
+        // Gemini-powered buttons
         const suggestEmojisButton = document.getElementById('suggest-emojis-button');
 
         // Global variables for API keys, initialized from local storage
-        let OPENAI_API_KEY = localStorage.getItem('OPENAI_API_KEY') || "";
+        let GEMINI_API_KEY = localStorage.getItem('GEMINI_API_KEY') || "";
         let X_API_KEY = localStorage.getItem('X_API_KEY') || "";
         let X_API_SECRET = localStorage.getItem('X_API_SECRET') || "";
         
@@ -274,45 +288,98 @@
             const remaining = MAX_CHARS - aiContentOutput.value.length;
             charCounter.textContent = `${remaining} characters remaining`;
         }
+
+        /**
+         * Converts a base64 string to an ArrayBuffer.
+         * @param {string} base64 The base64 encoded string.
+         * @returns {ArrayBuffer} The decoded data as an ArrayBuffer.
+         */
+        function base64ToArrayBuffer(base64) {
+            const binaryString = window.atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        /**
+         * Converts raw PCM audio data to a WAV file Blob.
+         * @param {Int16Array} pcmData The PCM audio data.
+         * @param {number} sampleRate The sample rate of the audio.
+         * @returns {Blob} The WAV file as a Blob.
+         */
+        function pcmToWav(pcmData, sampleRate) {
+            const buffer = new ArrayBuffer(44 + pcmData.length * 2);
+            const view = new DataView(buffer);
+            
+            // RIFF chunk
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + pcmData.length * 2, true);
+            writeString(view, 8, 'WAVE');
+
+            // fmt chunk
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true); // PCM format
+            view.setUint16(22, 1, true); // Mono
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * 2, true); // Byte rate
+            view.setUint16(32, 2, true); // Block align
+            view.setUint16(34, 16, true); // Bits per sample
+
+            // data chunk
+            writeString(view, 36, 'data');
+            view.setUint32(40, pcmData.length * 2, true);
+            
+            let offset = 44;
+            for (let i = 0; i < pcmData.length; i++) {
+                view.setInt16(offset, pcmData[i], true);
+                offset += 2;
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        /**
+         * Helper function to write a string to a DataView.
+         */
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
         
         /**
-         * Calls the OpenAI API to generate text.
-         * This function handles loading state and displays messages.
+         * Calls the Gemini TTS API to generate audio.
          */
-        async function callOpenAIApi(prompt, successMessage, outputElement) {
-            if (!OPENAI_API_KEY) {
-                showMessage('Please enter your OpenAI API key in settings.', 'error');
+        async function callGeminiTTSAPI(text) {
+            if (!GEMINI_API_KEY) {
+                showMessage('Please enter your Gemini API key in settings.', 'error');
                 return;
             }
 
-            // Disable all buttons during API call
-            const allButtons = [generateButton, refineButton, postButton, translateButton, toneButton, suggestEmojisButton];
-            allButtons.forEach(btn => {
-                if (btn) {
-                    btn.disabled = true;
-                    btn.innerText = "Working...";
-                    btn.classList.add('btn-disabled');
-                    btn.classList.remove('btn-primary', 'btn-secondary');
-                }
-            });
-
-            // Specific button text
-            generateButton.innerText = "Generating...";
-            if (refineButton) refineButton.innerText = "Refining...";
-            if (translateButton) translateButton.innerText = "Translating...";
-            if (toneButton) toneButton.innerText = "Analyzing...";
-            if (suggestEmojisButton) suggestEmojisButton.innerText = "Suggesting...";
-
+            ttsButton.disabled = true;
+            ttsButton.innerHTML = "<span>Generating Audio...</span>";
+            
             try {
                 const payload = {
-                    model: "gpt-3.5-turbo",
-                    messages: [{
-                        role: "user",
-                        content: prompt
-                    }]
+                    contents: [{
+                        parts: [{ text: `Say with a neutral tone: ${text}` }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: "Kore" }
+                            }
+                        }
+                    }
                 };
-                
-                const apiUrl = 'https://api.openai.com/v1/chat/completions';
+
+                const apiKey = GEMINI_API_KEY; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
                 
                 let response;
                 let retryCount = 0;
@@ -321,10 +388,93 @@
                     try {
                         response = await fetch(apiUrl, {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${OPENAI_API_KEY}`
-                            },
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (response.ok) break;
+                    } catch (error) {
+                        console.warn(`TTS Fetch attempt ${retryCount + 1} failed. Retrying...`);
+                    }
+                    retryCount++;
+                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000)); // Exponential backoff
+                }
+
+                if (!response || !response.ok) {
+                    throw new Error("TTS API call failed after multiple retries.");
+                }
+
+                const result = await response.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                    const sampleRate = parseInt(mimeType.match(/rate=(\d+)/)[1], 10);
+                    const pcmData = base64ToArrayBuffer(audioData);
+                    const pcm16 = new Int16Array(pcmData);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    
+                    ttsAudio.src = audioUrl;
+                    audioContainer.classList.remove('hidden');
+                    showMessage('Audio generated successfully!', 'success');
+                } else {
+                    throw new Error("Invalid audio data from API.");
+                }
+            } catch (error) {
+                console.error("Error calling Gemini TTS API:", error);
+                showMessage('An error occurred while generating audio. Check the console.', 'error');
+            } finally {
+                ttsButton.disabled = false;
+                ttsButton.innerHTML = "<span>Read Aloud ✨</span>";
+            }
+        }
+        
+        /**
+         * Simulates a fetch call to a generative model.
+         * The `prompt` is the text sent to the model.
+         * This function handles loading state and displays messages.
+         */
+        async function callGeminiAPI(prompt, successMessage, outputElement) {
+            if (!GEMINI_API_KEY) {
+                showMessage('Please enter your Gemini API key in settings.', 'error');
+                return;
+            }
+
+            // Disable all buttons during API call
+            const allButtons = [generateButton, refineButton, postButton, translateButton, toneButton, ttsButton, suggestEmojisButton];
+            allButtons.forEach(btn => {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerText = "Working...";
+                    btn.classList.add('btn-disabled');
+                    btn.classList.remove('btn-primary', 'btn-secondary');
+                }
+            });
+            // Specific button text
+            generateButton.innerText = "Generating...";
+            if(refineButton) refineButton.innerText = "Refining...";
+            if(translateButton) translateButton.innerText = "Translating...";
+            if(toneButton) toneButton.innerText = "Analyzing...";
+            if(ttsButton) ttsButton.innerText = "Generating Audio...";
+            if(suggestEmojisButton) suggestEmojisButton.innerText = "Suggesting...";
+
+            try {
+                // The actual fetch call to the Gemini API
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = { contents: chatHistory };
+                const apiKey = GEMINI_API_KEY; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                let response;
+                let retryCount = 0;
+                const maxRetries = 3;
+                while (retryCount < maxRetries) {
+                    try {
+                        response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(payload)
                         });
                         if (response.ok) break;
@@ -336,12 +486,11 @@
                 }
 
                 if (!response || !response.ok) {
-                    throw new Error(`API call failed with status: ${response.status}`);
+                    throw new Error("API call failed after multiple retries.");
                 }
 
                 const result = await response.json();
-                const text = result.choices[0].message.content;
-                
+                const text = result.candidates[0].content.parts[0].text;
                 if (outputElement) {
                     outputElement.innerText = text;
                 } else {
@@ -350,7 +499,7 @@
                 
                 showMessage(successMessage, 'success');
             } catch (error) {
-                console.error("Error calling OpenAI API:", error);
+                console.error("Error calling Gemini API:", error);
                 showMessage('An error occurred. Check the console for details.', 'error');
                 if (outputElement) {
                     outputElement.innerText = "Failed to process";
@@ -379,6 +528,13 @@
                     toneButton.classList.remove('btn-disabled');
                     toneButton.classList.add('btn-primary');
                 }
+
+                if (ttsButton) {
+                    ttsButton.disabled = false;
+                    ttsButton.innerText = "Read Aloud ✨";
+                    ttsButton.classList.remove('btn-disabled');
+                    ttsButton.classList.add('btn-primary');
+                }
                 
                 if (suggestEmojisButton) {
                     suggestEmojisButton.disabled = false;
@@ -387,6 +543,7 @@
                     suggestEmojisButton.classList.add('btn-primary');
                 }
 
+                
                 // Enable refine and post buttons if there's content
                 if (aiContentOutput.value.trim() !== '' && !aiContentOutput.value.includes("Failed")) {
                     if (refineButton) {
@@ -421,17 +578,17 @@
         }
         
         /**
-         * Generates a new social media post using the OpenAI API.
+         * Generates a new social media post using the Gemini API.
          */
         async function generatePost() {
             const userPrompt = userPromptInput.value.trim();
             // Tell the model to respect the character limit
             const prompt = `Write a compelling social media post, no more than ${MAX_CHARS} characters long, about ${userPrompt || 'the importance of sustainable technology and its impact on the future.'}`;
-            await callOpenAIApi(prompt, 'Content generated successfully!');
+            await callGeminiAPI(prompt, 'Content generated successfully!');
         }
 
         /**
-         * Refines the existing post using the OpenAI API.
+         * Refines the existing post using the Gemini API.
          */
         async function refinePost() {
             const currentContent = aiContentOutput.value;
@@ -440,7 +597,7 @@
                 return;
             }
             const prompt = `Rewrite the following social media post to make it more concise and engaging, and add a call to action. Keep the original sentiment and hashtags, if any. The final post must not exceed ${MAX_CHARS} characters.\n\n"${currentContent}"`;
-            await callOpenAIApi(prompt, 'Post refined for better engagement!');
+            await callGeminiAPI(prompt, 'Post refined for better engagement!');
         }
 
         /**
@@ -454,7 +611,7 @@
                 return;
             }
             const prompt = `Translate the following social media post into ${selectedLanguage}. The translated post should not exceed ${MAX_CHARS} characters.\n\n"${currentContent}"`;
-            await callOpenAIApi(prompt, `Post translated to ${selectedLanguage}!`);
+            await callGeminiAPI(prompt, `Post translated to ${selectedLanguage}!`);
         }
         
         /**
@@ -467,7 +624,7 @@
                 return;
             }
             const prompt = `Analyze the tone of the following social media post and return a single word, such as 'Professional', 'Casual', 'Informative', 'Witty', or 'Passionate'. Do not include any other text.\n\n"${currentContent}"`;
-            await callOpenAIApi(prompt, 'Tone analyzed!', toneOutput);
+            await callGeminiAPI(prompt, 'Tone analyzed!', toneOutput);
         }
         
         /**
@@ -482,15 +639,41 @@
             const prompt = `Suggest a few relevant emojis to add to the end of the following social media post. Do not include any text besides the emojis.\n\n"${currentContent}"`;
             
             // Get emojis from the API
-            let emojiResponse;
-            try {
-                const response = await callOpenAIApi(prompt, 'Emojis suggested!', null);
-                emojiResponse = response.choices[0].message.content;
-            } catch (error) {
-                console.error("Error suggesting emojis:", error);
-                showMessage('Failed to suggest emojis.', 'error');
-                return;
-            }
+            const emojiResponse = await new Promise(async (resolve, reject) => {
+                try {
+                    let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                    const payload = { contents: chatHistory };
+                    const apiKey = GEMINI_API_KEY;
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                    
+                    let response;
+                    let retryCount = 0;
+                    const maxRetries = 3;
+                    while (retryCount < maxRetries) {
+                        try {
+                            response = await fetch(apiUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            if (response.ok) break;
+                        } catch (error) {
+                            console.warn(`Fetch attempt ${retryCount + 1} failed. Retrying...`);
+                        }
+                        retryCount++;
+                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+                    }
+
+                    if (!response || !response.ok) {
+                        throw new Error("API call failed after multiple retries.");
+                    }
+
+                    const result = await response.json();
+                    resolve(result.candidates[0].content.parts[0].text);
+                } catch (error) {
+                    reject(error);
+                }
+            });
 
             // Append the emojis to the existing content if there is space
             const currentText = aiContentOutput.value.trim();
@@ -561,16 +744,16 @@
          * Saves the API keys to localStorage.
          */
         function saveSettings() {
-            const openaiKey = openaiApiKeyInput.value.trim();
+            const geminiKey = geminiApiKeyInput.value.trim();
             const apiKey = apiKeyInput.value.trim();
             const apiSecret = apiSecretInput.value.trim();
             
-            if (openaiKey) {
-                localStorage.setItem('OPENAI_API_KEY', openaiKey);
-                OPENAI_API_KEY = openaiKey;
-                showMessage('OpenAI API key saved successfully!', 'success');
+            if (geminiKey) {
+                localStorage.setItem('GEMINI_API_KEY', geminiKey);
+                GEMINI_API_KEY = geminiKey;
+                showMessage('Gemini API key saved successfully!', 'success');
             } else {
-                showMessage('Please enter your OpenAI API key.', 'error');
+                showMessage('Please enter your Gemini API key.', 'error');
                 return;
             }
 
@@ -590,7 +773,7 @@
          * Loads the API keys from localStorage on page load.
          */
         function loadSettings() {
-            openaiApiKeyInput.value = OPENAI_API_KEY;
+            geminiApiKeyInput.value = GEMINI_API_KEY;
             apiKeyInput.value = X_API_KEY;
             apiSecretInput.value = X_API_SECRET;
         }
@@ -600,6 +783,14 @@
         if (refineButton) refineButton.addEventListener('click', refinePost);
         if (translateButton) translateButton.addEventListener('click', translatePost);
         if (toneButton) toneButton.addEventListener('click', analyzeTone);
+        if (ttsButton) ttsButton.addEventListener('click', () => {
+            const currentContent = aiContentOutput.value;
+            if (currentContent.trim() === '') {
+                showMessage('No content to read aloud. Please generate a post first.', 'error');
+                return;
+            }
+            callGeminiTTSAPI(currentContent);
+        });
         if (postButton) postButton.addEventListener('click', postToX);
         if (suggestEmojisButton) suggestEmojisButton.addEventListener('click', suggestEmojis);
         if (saveSettingsButton) saveSettingsButton.addEventListener('click', saveSettings);
